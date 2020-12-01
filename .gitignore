@@ -2,6 +2,7 @@
 ### Python template
 
 test_graphs/
+graphs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

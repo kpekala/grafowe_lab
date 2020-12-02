@@ -12,3 +12,4 @@ def adjacency_list(n, edges):
     for (x, y, c) in edges:
         g[x - 1].append((y - 1, c))
     return g
+

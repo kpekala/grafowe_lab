@@ -1,10 +1,14 @@
-from copy import deepcopy
-graph = [
-    [1,2,3],
-    [4,5,6],
-    [7,8,9]
-]
+arr = []
+while True:
+    line = input()
+    if line:
+        arr.append(int(line))
+    else:
+        break
 
-graph1 = deepcopy(graph)
-graph1[0][0] = 9
-print(graph)
+n = len(arr)
+for i in range(n-2):
+    for j in range(i, n-1):
+        for k in range(j, n):
+            if arr[i] + arr[j] + arr[k] == 2020:
+                print(arr[i] * arr[j] * arr[k])

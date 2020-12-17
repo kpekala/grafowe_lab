@@ -1,0 +1,3 @@
+C:\Users\kgpek\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\202.7319.72\bin\cmake\win\bin\cmake.exe -E rm -f CMakeFiles\projekt.dir/objects.a
+C:\PROGRA~2\MINGW-~1\I686-8~1.0-P\mingw32\bin\ar.exe cr CMakeFiles\projekt.dir/objects.a @CMakeFiles\projekt.dir\objects1.rsp
+C:\PROGRA~2\MINGW-~1\I686-8~1.0-P\mingw32\bin\G__~1.EXE -g   -Wl,--whole-archive CMakeFiles\projekt.dir/objects.a -Wl,--no-whole-archive  -o projekt.exe -Wl,--out-implib,libprojekt.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\projekt.dir\linklibs.rsp

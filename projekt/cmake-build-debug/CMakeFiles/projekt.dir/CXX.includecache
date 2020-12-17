@@ -1,0 +1,14 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+C:/Users/kgpek/Desktop/Studia/grafy/repo/projekt/main.cpp
+iostream
+-
+vector
+C:/Users/kgpek/Desktop/Studia/grafy/repo/projekt/vector
+

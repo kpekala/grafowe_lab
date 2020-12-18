@@ -1,7 +1,10 @@
 #include <iostream>
 #include "vector"
 #include <algorithm>
+#include <queue>
 using namespace std;
+
+const int INF = 1e9;
 
 struct Match{
     int first,second,winner,bribe;
@@ -21,7 +24,8 @@ void makeFlowGraph(vector<vector<Edge>>& G, Match matches[], vector<Match> &brib
 void sortMatches(vector<Match> &matches);
 bool inMatches(const vector<Match>& matches, Match match);
 void testFlowGraph(vector<vector<Edge>> graph, int n, vector<Match> matches);
-int minCostFlow(vector<vector<Edge>> graph, int initialFlow, int neededFlow);
+int minCostFlow(vector<vector<Edge>> &graph, int initialFlow, int neededFlow);
+void shortest_paths(vector<vector<Edge>> &graph, int s, vector<int>& d, vector<int>& p);
 
 int main() {
     int T;
@@ -183,6 +187,75 @@ void testFlowGraph(vector<vector<Edge>> graph, int n, vector<Match> matches) {
     }
 }
 
-int minCostFlow(vector<vector<Edge>> graph, int initialFlow, int neededFlow) {
-    return 0;
+Edge* getEdge(vector<vector<Edge>> &graph, int u, int v){
+    for(Edge edge: graph[u]){
+        if (edge.to == v)
+            return &edge;
+    }
+    cout<<"Error!"<<endl;
+    return NULL;
 }
+
+int minCostFlow(vector<vector<Edge>> &graph, int initialFlow, int neededFlow) {
+    int n = graph.size();
+    int flow = initialFlow;
+    int cost = 0;
+    vector<int> d, p;
+    while (flow < neededFlow) {
+        shortest_paths(graph, 0, d, p);
+        if (d[n-1] == INF)
+            break;
+
+        // find max flow on that path
+        int f = neededFlow - flow;
+        int iter = n - 1;
+        while (iter != 0) {
+            f = min(f, getEdge(graph, p[iter], iter).capacity);
+            iter = p[iter];
+        }
+
+        // apply flow
+        flow += f;
+        cost += f * d[n-1];
+        iter = n-1;
+        while (iter != 0) {
+            Edge *e1 = getEdge(graph, p[iter], iter);
+            e1->capacity -= f;
+            Edge *e2 = getEdge(graph, iter, p[iter]);
+            e2->capacity += f;
+            iter = p[iter];
+        }
+    }
+
+    if (flow < neededFlow)
+        return -1;
+    else
+        return cost;
+}
+
+void shortest_paths(vector<vector<Edge>> &graph, int s, vector<int>& d, vector<int>& p) {
+    int n = graph.size();
+    d.assign(n, INF);
+    d[s] = 0;
+    vector<bool> visited(n, false);
+    queue<int> q;
+    q.push(s);
+    p.assign(n, -1);
+
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        visited[u] = false;
+        for (Edge e : graph[u]) {
+            if (e.capacity > 0 && d[e.to] > d[u] + e.cost) {
+                d[e.to] = d[u] + e.cost;
+                p[e.to] = u;
+                if (!visited[e.to]) {
+                    visited[e.to] = true;
+                    q.push(e.to);
+                }
+            }
+        }
+    }
+}
+

@@ -4,6 +4,8 @@
 #include <queue>
 using namespace std;
 
+vector<vector<int>> adj, cost, capacity;
+
 const int INF = 1e9;
 
 struct Match{
@@ -18,27 +20,29 @@ struct Edge{
     }
 };
 
-bool runTournament();
+bool runTournament(int ind);
 bool createD(vector<vector<int>> &D, Match matches[], int n, vector<Match> &king_matches_to_bribe, int B, int &t);
-void makeFlowGraph(vector<vector<Edge>>& G, Match matches[], vector<Match> &bribedKingMatches, int n, int B, int x);
-void sortMatches(vector<Match> &matches);
-bool inMatches(const vector<Match>& matches, Match match);
-void testFlowGraph(vector<vector<Edge>> graph, int n, vector<Match> matches);
-int minCostFlow(vector<vector<Edge>> &graph, int initialFlow, int neededFlow);
-void shortest_paths(vector<vector<Edge>> &graph, int s, vector<int>& d, vector<int>& p);
-
+bool makeFlowGraph(Match matches[], int t, int n, int B, int x, int &initialFlow);
+void testFlowGraph(vector<vector<Edge>> graph, int n, const vector<Match>& matches);
+int minCostFlow(int initialFlow, int neededFlow, int n);
+void printGraph(const vector<vector<Edge>> &graph);
+void shortest_paths(int n, int v0, vector<int>& d, vector<int>& p);
 int main() {
     int T;
     cin>>T;
     for(int i=0; i<T; i++)
-        runTournament();
+        if(runTournament(i)){
+            cout<<"TAK"<<endl;
+        }else{
+            cout<<"NIE"<<endl;
+        }
 
     return 0;
 }
 
 
-bool runTournament(){
-    int n, B, t;
+bool runTournament(int ind){
+    int n, B, t,initialFlow = 0;
     cin>>B>>n;
     int m = n*(n-1)/2;
     vector<vector<int>> D;
@@ -49,74 +53,75 @@ bool runTournament(){
         cin>>match.first>>match.second>>match.winner>>match.bribe;
         matches[i] = match;
     }
-    //Graf zwyciezców
     if(createD(D, matches, n, king_matches,B, t))
         return true;
-    sortMatches(king_matches);
-    vector<Match> bribedKingMatches;
-    int initialBribe = 0;
-    if(king_matches.empty())
-        return false;
-    for(int i=0; i < king_matches.size(); i++){
-        vector<vector<Edge>> G;
-        bribedKingMatches.push_back(king_matches[i]);
-        initialBribe += king_matches[i].bribe;
-        makeFlowGraph(G,matches, bribedKingMatches, n, B, t+i);
-        testFlowGraph(G, n, bribedKingMatches);
+
+    int min_cost = INF;
+    for(int i=0; i<=(n-1) - t;i++){
+        cout<<"siema"<<endl;
+        if(!makeFlowGraph(matches, t, n, B, t+i, initialFlow))
+            continue;
+        cout<<"siema"<<endl;
+        //printGraph(G);
+        int flowCost = minCostFlow(0,m,n);
+        if(flowCost == -1){
+            continue;
+        }
+        min_cost = min(flowCost, min_cost);
     }
-    return false;
+    //cout<<min_cost<<", "<<B<<endl;
+    return min_cost <= B;
 }
 
-void makeFlowGraph(vector<vector<Edge>> &G, Match matches[], vector<Match> &bribedKingMatches, int n, int B, int x) {
+bool makeFlowGraph(Match matches[], int t, int n, int B, int x, int &initialFlow) {
     int m = n * (n-1)/2;
-    int g_n = 2 + n + (n-1) * n/2;
-    int initialFlow = 0;
-    vector<int> winMatches;
-    winMatches.assign(n, 0);
-    G.assign(g_n, vector<Edge>());
+    int g_n = 3 + n + (n-1) * n/2;
+    vector<int> winMatches(n, 0);
+    adj.assign(g_n, vector<int>());
+    cost.assign(g_n, vector<int>(g_n, 0));
+    capacity.assign(g_n, vector<int>(g_n, 0));
+
     //źródło
     for(int i=0; i<m; i++){
         int i_left = i + 1;
         int i_right = m+1;
         Match match = matches[i];
         int loser = match.first == match.winner ? match.second: match.first;
-        Edge edge_left(i_left, 1, 0);
-        G[0].push_back(edge_left);
-        if(inMatches(bribedKingMatches, match)){
-            //Ten mecz musimy "zamarkować" jako przekupiony
-            //Edge edge_right(i_right,0,0);
-            initialFlow++;
-            //G[i_left].push_back(edge_right);
-        }else{
-            //Dodajemy krawędzie miedzy meczem a graczami
-            //wygrany:
-            if (match.bribe > B) {
-                //Nie ma opcji żeby przekupić tego gracza :/ Więc niech flow tedy poplynie
-                winMatches[match.winner]++;
-                initialFlow++;
-                Edge edge_right(i_right + match.winner,0,0);
-                G[i_left].push_back(edge_right);
-            }else if(match.winner != 0){
-                Edge edge_right1(i_right + match.winner,1,0);
-                G[i_left].push_back(edge_right1);
-                Edge edge_right2(i_right + loser,1,match.bribe);
-                G[i_left].push_back(edge_right2);
-            }else{
-                initialFlow++;
-            }
+        //Edge edge_left(i_left, 1, 0);
+        adj[0].push_back(i_left);
+        capacity[0][i_left] = 1;
+        //G[0].push_back(edge_left);
+
+        //Dodajemy krawędzie miedzy meczem a graczami
+        //Edge edge_right(i_right + match.winner,1,0);
+        adj[i_left].push_back(i_right + match.winner);
+        capacity[i_left][i_right + match.winner] = 1;
+        //G[i_left].push_back(edge_right);
+        if (match.bribe <= B) {
+            Edge edge_right2(i_right + loser,1,match.bribe);
+            if(match.winner == 0)
+                edge_right2.cost = INF;
+            adj[i_left].push_back(i_right + loser);
+            capacity[i_left][i_right + loser] = 1;
+            cost[i_left][i_right + loser] = edge_right2.cost;
+            cost[i_right + loser][i_left] = -edge_right2.cost;
+            //G[i_left].push_back(edge_right2);
         }
     }
     //Dodamy krawędzie miedzy graczami a końcem
     for(int i=0; i<n; i++){
         int i_right = m+1+i;
-        Edge edge(g_n - 1,x - winMatches[i],0);
+        Edge edge(g_n - 2,x,0);
         if(i==0)
-            edge.capacity = 0;
-        if(edge.capacity < 0)
-            cout<<"Mamy problem!"<<endl;
-        G[i_right].push_back(edge);
+            edge.to = g_n-1;
+        //G[i_right].push_back(edge);
+        adj[i_right].push_back(g_n - 2);
+        capacity[i_right][g_n - 2] = x;
     }
-
+    //G[g_n-2].push_back(Edge(g_n-1,m-x,0));
+    adj[g_n-2].push_back(g_n - 1);
+    capacity[g_n-2][g_n - 1] = m-x;
+    return true;
 }
 
 
@@ -138,124 +143,75 @@ bool createD(vector<vector<int>> &D, Match matches[], int n, vector<Match> &king
     return t == maxOut;
 }
 
-
-void sortMatches(vector<Match> &matches){
-    int n = matches.size();
-    int i, j;
-    for (i = 0; i < n-1; i++)
-        for (j = 0; j < n-i-1; j++)
-            if (matches[j].bribe > matches[j+1].bribe){
-                Match tmp = matches[j];
-                matches[j] = matches[j+1];
-                matches[j+1] = tmp;
-            }
-
-}
-
-bool inMatches(const vector<Match>& matches, Match match){
-    for(Match m: matches){
-        if (m.first == match.first and m.second == match.second)
-            return true;
-    }
-    return false;
-}
-
 void printMatch(const Match match){
     cout<<match.first<<" "<<match.second<<" "<<match.winner<<" "<<match.bribe<<endl;
 }
 
-void testFlowGraph(vector<vector<Edge>> graph, int n, vector<Match> matches) {
-    cout<<"Przekupstwa:"<<endl;
-    for(Match match: matches){
-        printMatch(match);
-    }
-    int m = (n)*(n-1)/2;
-    cout<<endl<<"Zrodlo ma: "<<endl;
-    cout<<"- "<<graph[0].size()<<"Krawedzi"<<endl;
-    for(int i=1; i<=n*(n-1)/2; i++){
-        cout<<"Mecz "<<i-1<<endl;
+void printGraph(const vector<vector<Edge>> &graph){
+    cout<<"Prinintg graph: "<<endl;
+    int n = graph.size();
+    for(int i=0; i<n; i++){
+        cout<<i<<": "<<endl;
         for(Edge edge: graph[i]){
-            cout<<"Krawedz do gracza "<<edge.to - (1 + m)<<" o koszcie: "<<edge.cost<<" i o c: "<<edge.capacity<<endl;
+            cout<<edge.to<<" "<<edge.capacity<<" "<<edge.cost<<endl;
         }
     }
-
-    for(int i=0; i<n; i++){
-        int i_right = m+1+i;
-        Edge e = graph[i_right][0];
-        cout<<"Gracz "<<i<<endl;
-        cout<<e.to<<" "<<e.capacity<<" "<<e.cost<<endl;
-    }
 }
 
-Edge* getEdge(vector<vector<Edge>> &graph, int u, int v){
-    for(Edge edge: graph[u]){
-        if (edge.to == v)
-            return &edge;
-    }
-    cout<<"Error!"<<endl;
-    return NULL;
-}
+int minCostFlow(int initialFlow, int neededFlow, int n) {
 
-int minCostFlow(vector<vector<Edge>> &graph, int initialFlow, int neededFlow) {
-    int n = graph.size();
-    int flow = initialFlow;
-    int cost = 0;
+    int flow = 0;
+    int min_cost = 0;
     vector<int> d, p;
     while (flow < neededFlow) {
-        shortest_paths(graph, 0, d, p);
+        shortest_paths(n, 0,d,p);
         if (d[n-1] == INF)
             break;
 
-        // find max flow on that path
         int f = neededFlow - flow;
-        int iter = n - 1;
-        while (iter != 0) {
-            f = min(f, getEdge(graph, p[iter], iter).capacity);
-            iter = p[iter];
+        int cur = n-1;
+        while (cur != 0) {
+            f = min(f, capacity[p[cur]][cur]);
+            cur = p[cur];
         }
 
-        // apply flow
         flow += f;
-        cost += f * d[n-1];
-        iter = n-1;
-        while (iter != 0) {
-            Edge *e1 = getEdge(graph, p[iter], iter);
-            e1->capacity -= f;
-            Edge *e2 = getEdge(graph, iter, p[iter]);
-            e2->capacity += f;
-            iter = p[iter];
+        min_cost += f * d[n-1];
+        cur = n-1;
+        while (cur != 0) {
+            capacity[p[cur]][cur] -= f;
+            capacity[cur][p[cur]] += f;
+            cur = p[cur];
         }
     }
 
     if (flow < neededFlow)
         return -1;
     else
-        return cost;
+        return min_cost;
 }
 
-void shortest_paths(vector<vector<Edge>> &graph, int s, vector<int>& d, vector<int>& p) {
-    int n = graph.size();
+void shortest_paths(int n, int v0, vector<int>& d, vector<int>& p) {
     d.assign(n, INF);
-    d[s] = 0;
+    d[v0] = 0;
     vector<bool> visited(n, false);
     queue<int> q;
-    q.push(s);
+    q.push(v0);
     p.assign(n, -1);
 
     while (!q.empty()) {
         int u = q.front();
         q.pop();
         visited[u] = false;
-        for (Edge e : graph[u]) {
-            if (e.capacity > 0 && d[e.to] > d[u] + e.cost) {
-                d[e.to] = d[u] + e.cost;
-                p[e.to] = u;
-                if (!visited[e.to]) {
-                    visited[e.to] = true;
-                    q.push(e.to);
+        for (int v : adj[u]) {
+            if (capacity[u][v] > 0 && d[v] > d[u] + cost[u][v]) {
+                d[v] = d[u] + cost[u][v];
+                p[v] = u;
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
                 }
             }
         }
     }
 }
-
